@@ -21,9 +21,27 @@ class Bot:
         self.invitation_system = InvitationSystem(self.db_session)
         self.backup_system = DatabaseBackup()
         
-    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user = update.effective_user
-        # 检查用户是否存在，不存在则创建
+    def check_group_allowed(self, chat_id, username=None):
+        """检查群组是否在白名单中"""
+        chat_id_str = str(chat_id)
+        
+        for allowed in Config.ALLOWED_GROUPS:
+            allowed = allowed.strip()
+            if not allowed:  # 跳过空值
+                continue
+                
+            # 检查数字ID（包括带负号的）
+            if allowed.lstrip('-').isdigit() and chat_id_str == allowed:
+                return True
+                
+            # 检查用户名格式（@开头）
+            if username and allowed.startswith('@') and username == allowed[1:]:
+                return True
+        
+        return False
+        
+    def ensure_user_exists(self, user):
+        """确保用户存在于数据库中"""
         db_user = self.db_session.query(User).filter_by(tg_id=user.id).first()
         if not db_user:
             new_user = User(
@@ -33,10 +51,11 @@ class Bot:
             )
             self.db_session.add(new_user)
             self.db_session.commit()
-            
+        return db_user or new_user
+
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         welcome_text = (
-            f"你好 {user.first_name}！\n"
-            "🤖 欢迎使用积分机器人\n\n"
+            "🤖 积分机器人使用说明\n\n"
             "💡 功能说明：\n"
             "1. 发送消息获得积分\n"
             "2. 每日签到奖励\n"
@@ -46,15 +65,27 @@ class Bot:
             "「签到」- 每日签到\n"
             "「积分」- 查询积分\n"
             "「积分排行榜」- 查看排名\n\n"
-            "✨ 开始使用吧！"
+            "✨ 在授权的群组内直接使用以上功能即可！"
         )
         await update.message.reply_text(welcome_text)
 
     async def checkin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = update.effective_user.id
-        result = await self.point_system.daily_checkin(user_id)
+        if update.message.chat.type in ['group', 'supergroup']:
+            chat_id = update.message.chat.id
+            chat_username = update.message.chat.username
+            if not self.check_group_allowed(chat_id, chat_username):
+                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                return
+        else:
+            await update.message.reply_text("请在授权的群组内使用机器人功能！")
+            return
+
+        user = update.effective_user
+        self.ensure_user_exists(user)
+        
+        result = await self.point_system.daily_checkin(user.id)
         if result:
-            points, _ = await self.point_system.get_user_points(user_id)
+            points, _ = await self.point_system.get_user_points(user.id)
             await update.message.reply_text(
                 f"✅ 签到成功！\n"
                 f"💰 获得 {Config.DAILY_CHECKIN_POINTS} 积分\n"
@@ -64,20 +95,41 @@ class Bot:
             await update.message.reply_text("❌ 今天已经签到过了哦！明天再来吧！")
 
     async def show_points(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        user_id = update.effective_user.id
-        points, username = await self.point_system.get_user_points(user_id)
+        if update.message.chat.type in ['group', 'supergroup']:
+            chat_id = update.message.chat.id
+            chat_username = update.message.chat.username
+            if not self.check_group_allowed(chat_id, chat_username):
+                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                return
+        else:
+            await update.message.reply_text("请在授权的群组内使用机器人功能！")
+            return
+
+        user = update.effective_user
+        self.ensure_user_exists(user)
+        
+        points, username = await self.point_system.get_user_points(user.id)
         if points is not None:
             await update.message.reply_text(
                 f"👤 用户: {username}\n"
                 f"💰 当前积分: {int(points)}分"
             )
         else:
-            await update.message.reply_text("未找到你的积分信息，请先使用 /start 注册")
+            await update.message.reply_text("未找到你的积分信息")
 
     async def show_leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE, page=1):
+        if update.message.chat.type in ['group', 'supergroup']:
+            chat_id = update.message.chat.id
+            chat_username = update.message.chat.username
+            if not self.check_group_allowed(chat_id, chat_username):
+                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                return
+        else:
+            await update.message.reply_text("请在授权的群组内使用机器人功能！")
+            return
+
         leaderboard_text, total_pages = await self.point_system.get_points_leaderboard(page)
         
-        # 创建翻页按钮
         keyboard = []
         if total_pages > 1:
             buttons = []
@@ -113,6 +165,28 @@ class Bot:
             await query.message.edit_text(leaderboard_text, reply_markup=reply_markup)
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not update.message:
+            return
+            
+        # 检查是否是群组消息
+        if update.message.chat.type in ['group', 'supergroup']:
+            chat_id = update.message.chat.id
+            chat_username = update.message.chat.username
+            
+            # 检查群组是否在白名单中
+            if not self.check_group_allowed(chat_id, chat_username):
+                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                return
+            
+            # 确保用户存在于数据库中
+            user = update.effective_user
+            self.ensure_user_exists(user)
+        else:
+            # 如果不是群组消息，提示用户
+            await update.message.reply_text("请在授权的群组内使用机器人功能！")
+            return
+        
+        # 处理消息
         if not update.message.text:
             return
             
@@ -126,9 +200,8 @@ class Bot:
             await self.show_leaderboard(update, context)
         else:
             # 处理普通消息获取积分
-            user_id = update.effective_user.id
             if await self.point_system.check_message_validity(update.message):
-                await self.point_system.add_points(user_id, Config.POINTS_PER_MESSAGE)
+                await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_MESSAGE)
 
     def run(self):
         # 初始化数据库
