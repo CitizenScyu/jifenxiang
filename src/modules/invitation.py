@@ -24,7 +24,14 @@ class InvitationSystem:
             user.invite_code = self.generate_invite_code()
             self.db.commit()
             
-        return f"https://t.me/你的机器人用户名?start={user.invite_code}"
+        # 获取邀请统计
+        successful_invites = await self.get_invitation_count(user_id)
+            
+        return (
+            f"https://t.me/你的机器人用户名?start={user.invite_code}\n\n"
+            f"📊 已成功邀请：{successful_invites} 人\n"
+            f"💰 累计获得：{successful_invites * Config.INVITATION_POINTS} 积分"
+        )
     
     async def process_invitation(self, inviter_code, new_user_id):
         """处理邀请"""
@@ -40,16 +47,32 @@ class InvitationSystem:
         if existing_invitation:
             return False
             
-        # 创建邀请记录
-        invitation = Invitation(inviter_id=inviter.tg_id, invitee_id=new_user_id)
+        new_user = self.db.query(User).filter_by(tg_id=new_user_id).first()
+        if not new_user:
+            return False
+            
+        # 记录邀请关系并立即发放奖励
+        invitation = Invitation(
+            inviter_id=inviter.tg_id,
+            invitee_id=new_user_id,
+            rewarded=True
+        )
         self.db.add(invitation)
-        
-        # 给邀请人加分
         inviter.points += Config.INVITATION_POINTS
         self.db.commit()
-        
         return True
-        
+
     async def get_invitation_count(self, user_id):
-        """获取用户邀请的人数"""
-        return self.db.query(Invitation).filter_by(inviter_id=user_id).count()
+        """获取用户成功邀请的人数"""
+        return self.db.query(Invitation).filter_by(
+            inviter_id=user_id,
+            rewarded=True
+        ).count()
+
+    async def get_inviter_info(self, user_id):
+        """获取邀请人信息"""
+        invitation = self.db.query(Invitation).filter_by(invitee_id=user_id).first()
+        if invitation:
+            inviter = self.db.query(User).filter_by(tg_id=invitation.inviter_id).first()
+            return inviter
+        return None
