@@ -33,6 +33,9 @@ logger = logging.getLogger()
 logger.addHandler(file_handler)
 logger.addHandler(console_handler)
 
+# 获取应用logger
+logger = logging.getLogger(__name__)
+
 class Bot:
     def __init__(self):
         self.db_session = get_session()
