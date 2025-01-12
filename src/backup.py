@@ -78,7 +78,7 @@ class DatabaseBackup:
             logging.error(f"Cleanup failed: {str(e)}")
 
     def start_backup_schedule(self):
-        schedule.every(1).minutes.do(self.backup_database)
+        schedule.every(5).minutes.do(self.backup_database)
         
         while True:
             schedule.run_pending()
