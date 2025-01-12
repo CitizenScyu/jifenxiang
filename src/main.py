@@ -7,7 +7,6 @@ from modules.invitation import InvitationSystem
 from database.db import init_db, get_session, User
 from backup import DatabaseBackup
 
-# 设置日志
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
@@ -22,26 +21,22 @@ class Bot:
         self.backup_system = DatabaseBackup()
         
     def check_group_allowed(self, chat_id, username=None):
-        """检查群组是否在白名单中"""
         chat_id_str = str(chat_id)
         
         for allowed in Config.ALLOWED_GROUPS:
             allowed = allowed.strip()
-            if not allowed:  # 跳过空值
+            if not allowed:
                 continue
                 
-            # 检查数字ID（包括带负号的）
             if allowed.lstrip('-').isdigit() and chat_id_str == allowed:
                 return True
                 
-            # 检查用户名格式（@开头）
             if username and allowed.startswith('@') and username == allowed[1:]:
                 return True
         
         return False
         
     def ensure_user_exists(self, user):
-        """确保用户存在于数据库中"""
         db_user = self.db_session.query(User).filter_by(tg_id=user.id).first()
         if not db_user:
             new_user = User(
@@ -54,7 +49,6 @@ class Bot:
         return db_user or new_user
 
     async def show_invite_link(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """显示用户的邀请链接和邀请统计"""
         if update.message.chat.type in ['group', 'supergroup']:
             chat_id = update.message.chat.id
             chat_username = update.message.chat.username
@@ -84,7 +78,6 @@ async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
         self.ensure_user_exists(user)
         
-        # 检查是否是通过邀请链接进来的
         if context.args and len(context.args) > 0:
             invite_code = context.args[0]
             if await self.invitation_system.process_invitation(invite_code, user.id):
@@ -212,25 +205,20 @@ async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if not update.message:
             return
             
-        # 检查是否是群组消息
         if update.message.chat.type in ['group', 'supergroup']:
             chat_id = update.message.chat.id
             chat_username = update.message.chat.username
             
-            # 检查群组是否在白名单中
             if not self.check_group_allowed(chat_id, chat_username):
                 await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
                 return
             
-            # 确保用户存在于数据库中
             user = update.effective_user
             self.ensure_user_exists(user)
         else:
-            # 如果不是群组消息，提示用户
             await update.message.reply_text("请在授权的群组内使用机器人功能！")
             return
         
-        # 处理消息
         if update.message.text:
             text = update.message.text.strip()
             
@@ -241,24 +229,15 @@ async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif text == "积分排行榜":
                 await self.show_leaderboard(update, context)
             else:
-                # 处理普通消息获取积分
                 if await self.point_system.check_message_validity(update.message):
                     await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_MESSAGE)
-        # 处理贴纸
         elif update.message.sticker:
             await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_STICKER)
 
     def run(self):
-        # 初始化数据库
         init_db()
-        
-        # 启动备份系统
         self.backup_system.run()
-        
-        # 创建应用
         application = Application.builder().token(Config.BOT_TOKEN).build()
-
-        # 添加处理器
         application.add_handler(CommandHandler("start", self.start))
         application.add_handler(CommandHandler("checkin", self.checkin))
         application.add_handler(CommandHandler("points", self.show_points))
@@ -266,8 +245,6 @@ async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         application.add_handler(CommandHandler("invite", self.show_invite_link))
         application.add_handler(CallbackQueryHandler(self.button_callback))
         application.add_handler(MessageHandler((filters.Sticker.ALL | filters.TEXT) & ~filters.COMMAND, self.handle_message))
-
-        # 启动机器人
         application.run_polling()
 
 if __name__ == '__main__':
