@@ -221,7 +221,7 @@ class Bot:
         application.add_handler(CommandHandler("points", self.show_points))
         application.add_handler(CommandHandler("leaderboard", self.show_leaderboard))
         application.add_handler(CallbackQueryHandler(self.button_callback))
-        application.add_handler(MessageHandler(filters.TEXT | filters.STICKER & ~filters.COMMAND, self.handle_message))
+        application.add_handler(MessageHandler((filters.Sticker.ALL | filters.TEXT) & ~filters.COMMAND, self.handle_message))
 
         # 启动机器人
         application.run_polling()
