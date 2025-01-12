@@ -8,6 +8,9 @@ class Config:
     DATABASE_URL = os.getenv('DATABASE_URL')
     ADMIN_IDS = [int(id) for id in os.getenv('ADMIN_IDS').split(',')]
     
+    # 群组白名单，支持多种格式
+    ALLOWED_GROUPS = os.getenv('ALLOWED_GROUPS', '').split(',')
+    
     # 积分设置
     MIN_TEXT_LENGTH = 5  # 最少字数限制
     POINTS_PER_MESSAGE = 1  # 每条消息积分
