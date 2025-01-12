@@ -185,7 +185,7 @@ class Bot:
         if points is not None:
             await update.message.reply_text(
                 f"👤 用户: {username}\n"
-                f"💰 当前积分: {int(points)}分"
+                f"💰 当前积分: {round(float(points))}分"
             )
         else:
             await update.message.reply_text("未找到你的积分信息")
