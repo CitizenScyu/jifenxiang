@@ -145,7 +145,7 @@ EOL
     cat > /etc/supervisor/conf.d/tg_bot.conf << EOL
 [program:tg_bot]
 directory=${WORK_DIR}
-command=${WORK_DIR}/venv/bin/python src/main.py
+command=${WORK_DIR}/venv/bin/python ${WORK_DIR}/src/main.py
 autostart=true
 autorestart=true
 stderr_logfile=${WORK_DIR}/logs/err.log
@@ -205,7 +205,7 @@ EOL
     print_message "启动服务..."
     supervisorctl reread
     supervisorctl update
-    supervisorctl start tg_bot
+    supervisorctl restart tg_bot
     
     # 检查服务状态
     sleep 5
