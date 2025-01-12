@@ -1,4 +1,5 @@
 import logging
+import sys
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from config.config import Config
@@ -7,11 +8,17 @@ from modules.invitation import InvitationSystem
 from database.db import init_db, get_session, User
 from backup import DatabaseBackup
 
+# 配置日志
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO,
-    filename='logs/bot.log'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('logs/bot.log'),
+        logging.StreamHandler(sys.stdout)
+    ]
 )
+
+logger = logging.getLogger(__name__)
 
 class Bot:
     def __init__(self):
@@ -49,34 +56,45 @@ class Bot:
         return db_user or new_user
 
     async def show_invite_link(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.message.chat.type in ['group', 'supergroup']:
-            chat_id = update.message.chat.id
-            chat_username = update.message.chat.username
-            if not self.check_group_allowed(chat_id, chat_username):
-                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
-                return
-        
-        user = update.effective_user
-        self.ensure_user_exists(user)
-        
-        invite_code = await self.invitation_system.generate_invite_link(user.id)
-        invite_count = await self.invitation_system.get_invitation_count(user.id)
-        
-        bot_username = context.bot.username
-        
-        await update.message.reply_text(
-            f"👤 用户：{user.username or user.first_name}\n\n"
-            f"🔗 邀请链接：\n"
-            f"https://t.me/{bot_username}?start={invite_code}\n\n"
-            f"📊 邀请统计：\n"
-            f"✨ 成功邀请：{invite_count} 人\n"
-            f"💰 获得奖励：{invite_count * Config.INVITATION_POINTS} 积分\n\n"
-            f"💡 说明：\n"
-            f"• 每成功邀请一人奖励 {Config.INVITATION_POINTS} 积分\n"
-            f"• 每个新用户只能被邀请一次\n"
-            f"• 邀请成功后立即发放奖励"
-        )
-    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        logger.info(f"Received invite command from user {update.effective_user.id}")
+        try:
+            if update.message.chat.type in ['group', 'supergroup']:
+                chat_id = update.message.chat.id
+                chat_username = update.message.chat.username
+                logger.info(f"Processing invite command in chat {chat_id} ({chat_username})")
+                
+                if not self.check_group_allowed(chat_id, chat_username):
+                    logger.warning(f"Unauthorized chat: {chat_id}")
+                    await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                    return
+            
+            user = update.effective_user
+            self.ensure_user_exists(user)
+            
+            invite_code = await self.invitation_system.generate_invite_link(user.id)
+            invite_count = await self.invitation_system.get_invitation_count(user.id)
+            
+            bot_username = context.bot.username
+            logger.info(f"Generated invite link for user {user.id} with code {invite_code}")
+            
+            await update.message.reply_text(
+                f"👤 用户：{user.username or user.first_name}\n\n"
+                f"🔗 邀请链接：\n"
+                f"https://t.me/{bot_username}?start={invite_code}\n\n"
+                f"📊 邀请统计：\n"
+                f"✨ 成功邀请：{invite_count} 人\n"
+                f"💰 获得奖励：{invite_count * Config.INVITATION_POINTS} 积分\n\n"
+                f"💡 说明：\n"
+                f"• 每成功邀请一人奖励 {Config.INVITATION_POINTS} 积分\n"
+                f"• 每个新用户只能被邀请一次\n"
+                f"• 邀请成功后立即发放奖励"
+            )
+            logger.info(f"Successfully sent invite info to user {user.id}")
+        except Exception as e:
+            logger.error(f"Error in show_invite_link: {str(e)}", exc_info=True)
+            await update.message.reply_text("生成邀请链接时出现错误，请稍后重试。")
+            async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        logger.info(f"Start command received from user {update.effective_user.id}")
         user = update.effective_user
         self.ensure_user_exists(user)
         
@@ -237,17 +255,29 @@ class Bot:
             await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_STICKER)
 
     def run(self):
-        init_db()
-        self.backup_system.run()
-        application = Application.builder().token(Config.BOT_TOKEN).build()
-        application.add_handler(CommandHandler("start", self.start))
-        application.add_handler(CommandHandler("checkin", self.checkin))
-        application.add_handler(CommandHandler("points", self.show_points))
-        application.add_handler(CommandHandler("leaderboard", self.show_leaderboard))
-        application.add_handler(CommandHandler("invite", self.show_invite_link))
-        application.add_handler(CallbackQueryHandler(self.button_callback))
-        application.add_handler(MessageHandler((filters.Sticker.ALL | filters.TEXT) & ~filters.COMMAND, self.handle_message))
-        application.run_polling()
+        while True:
+            try:
+                logger.info("Initializing bot...")
+                init_db()
+                self.backup_system.run()
+                
+                application = Application.builder().token(Config.BOT_TOKEN).build()
+                
+                # 添加处理器
+                application.add_handler(CommandHandler("start", self.start))
+                application.add_handler(CommandHandler("checkin", self.checkin))
+                application.add_handler(CommandHandler("points", self.show_points))
+                application.add_handler(CommandHandler("leaderboard", self.show_leaderboard))
+                application.add_handler(CommandHandler("invite", self.show_invite_link))
+                application.add_handler(CallbackQueryHandler(self.button_callback))
+                application.add_handler(MessageHandler((filters.Sticker.ALL | filters.TEXT) & ~filters.COMMAND, self.handle_message))
+
+                logger.info("Bot is starting...")
+                application.run_polling(timeout=30, drop_pending_updates=True)
+            except Exception as e:
+                logger.error(f"Error in main loop: {str(e)}", exc_info=True)
+                import time
+                time.sleep(10)  # 等待10秒后重试
 
 if __name__ == '__main__':
     bot = Bot()
