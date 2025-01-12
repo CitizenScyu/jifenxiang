@@ -91,33 +91,40 @@ setup_logging() {
 main() {
     print_message "开始安装 Telegram Points Bot..."
     
+    # 检查系统
     check_system
     install_basic_dependencies
     install_python
     install_supervisor
     configure_firewall
     
+    # 获取用户输入
     read -p "请输入Telegram Bot Token: " BOT_TOKEN
     read -p "请输入管理员ID: " ADMIN_ID
     read -p "请输入WebDAV地址: " WEBDAV_HOST
     read -p "请输入WebDAV用户名: " WEBDAV_USERNAME
     read -p "请输入WebDAV密码: " WEBDAV_PASSWORD
+    read -p "请输入允许使用的群组ID或用户名(多个用逗号分隔): " ALLOWED_GROUPS
     
+    # 创建工作目录
     WORK_DIR="/opt/tg_bot"
     print_message "创建工作目录..."
     mkdir -p $WORK_DIR
     cd $WORK_DIR
     
+    # 创建虚拟环境
     print_message "创建Python虚拟环境..."
     python3 -m venv venv
     source venv/bin/activate
     
+    # 下载源代码
     print_message "下载源代码..."
     git clone https://github.com/CitizenScyu/jifenxiang.git .
     
     setup_logging
     install_dependencies
     
+    # 创建配置文件
     print_message "创建配置文件..."
     cat > .env << EOL
 BOT_TOKEN=${BOT_TOKEN}
@@ -128,8 +135,12 @@ ADMIN_IDS=${ADMIN_ID}
 WEBDAV_HOST=${WEBDAV_HOST}
 WEBDAV_USERNAME=${WEBDAV_USERNAME}
 WEBDAV_PASSWORD=${WEBDAV_PASSWORD}
+
+# 群组白名单
+ALLOWED_GROUPS=${ALLOWED_GROUPS}
 EOL
     
+    # 配置supervisor
     print_message "配置supervisor..."
     cat > /etc/supervisor/conf.d/tg_bot.conf << EOL
 [program:tg_bot]
@@ -143,10 +154,12 @@ user=root
 environment=PATH="${WORK_DIR}/venv/bin"
 EOL
     
+    # 设置权限
     chown -R root:root ${WORK_DIR}
     chmod -R 755 ${WORK_DIR}
     chmod 600 ${WORK_DIR}/.env
     
+    # 创建管理脚本
     cat > manage.sh << EOL
 #!/bin/bash
 case "\$1" in
@@ -188,11 +201,13 @@ EOL
 
     chmod +x manage.sh
     
+    # 启动服务
     print_message "启动服务..."
     supervisorctl reread
     supervisorctl update
     supervisorctl start tg_bot
     
+    # 检查服务状态
     sleep 5
     if supervisorctl status tg_bot | grep -q RUNNING; then
         print_message "✅ 安装成功！机器人已经启动。"
@@ -206,10 +221,16 @@ EOL
         print_message "./manage.sh backup   - 手动备份"
         print_message "./manage.sh restore  - 恢复数据"
         print_message "./manage.sh update   - 更新代码"
+        
+        print_message "\n💡 提示："
+        print_message "1. 所有日志文件位于 ${WORK_DIR}/logs/ 目录"
+        print_message "2. 配置文件位于 ${WORK_DIR}/.env"
+        print_message "3. 数据库文件位于 ${WORK_DIR}/bot.db"
     else
         print_error "❌ 启动失败，请检查日志文件"
         print_error "tail -f ${WORK_DIR}/logs/err.log"
     fi
 }
 
+# 运行主函数
 main
