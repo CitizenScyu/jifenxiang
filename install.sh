@@ -116,10 +116,15 @@ main() {
     print_message "创建Python虚拟环境..."
     python3 -m venv venv
     source venv/bin/activate
-    
+
     # 下载源代码
     print_message "下载源代码..."
-    git clone https://github.com/CitizenScyu/jifenxiang.git .
+    if [ ! "$(ls -A ${WORK_DIR})" ]; then
+        git clone https://github.com/CitizenScyu/jifenxiang.git .
+    else
+        # 如果目录不为空，只复制src目录内容
+        cp -r src/* ${WORK_DIR}/
+    fi
     
     setup_logging
     install_dependencies
