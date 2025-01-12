@@ -58,9 +58,10 @@ class Bot:
             "🤖 积分机器人使用说明\n\n"
             "💡 功能说明：\n"
             "1. 发送消息获得积分\n"
-            "2. 每日签到奖励\n"
-            "3. 邀请新用户奖励\n"
-            "4. 查看积分排行榜\n\n"
+            "2. 发送贴纸获得积分\n"
+            "3. 每日签到奖励\n"
+            "4. 邀请新用户奖励\n"
+            "5. 查看积分排行榜\n\n"
             "📝 快捷命令：\n"
             "「签到」- 每日签到\n"
             "「积分」- 查询积分\n"
@@ -187,21 +188,22 @@ class Bot:
             return
         
         # 处理消息
-        if not update.message.text:
-            return
+        if update.message.text:
+            text = update.message.text.strip()
             
-        text = update.message.text.strip()
-        
-        if text == "签到":
-            await self.checkin(update, context)
-        elif text == "积分":
-            await self.show_points(update, context)
-        elif text == "积分排行榜":
-            await self.show_leaderboard(update, context)
-        else:
-            # 处理普通消息获取积分
-            if await self.point_system.check_message_validity(update.message):
-                await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_MESSAGE)
+            if text == "签到":
+                await self.checkin(update, context)
+            elif text == "积分":
+                await self.show_points(update, context)
+            elif text == "积分排行榜":
+                await self.show_leaderboard(update, context)
+            else:
+                # 处理普通消息获取积分
+                if await self.point_system.check_message_validity(update.message):
+                    await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_MESSAGE)
+        # 处理贴纸
+        elif update.message.sticker:
+            await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_STICKER)
 
     def run(self):
         # 初始化数据库
@@ -219,7 +221,7 @@ class Bot:
         application.add_handler(CommandHandler("points", self.show_points))
         application.add_handler(CommandHandler("leaderboard", self.show_leaderboard))
         application.add_handler(CallbackQueryHandler(self.button_callback))
-        application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+        application.add_handler(MessageHandler(filters.TEXT | filters.STICKER & ~filters.COMMAND, self.handle_message))
 
         # 启动机器人
         application.run_polling()
