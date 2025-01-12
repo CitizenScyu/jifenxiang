@@ -15,7 +15,7 @@ class InvitationSystem:
                 return code
     
     async def generate_invite_link(self, user_id):
-        """为用户生成邀请链接"""
+        """生成邀请码"""
         user = self.db.query(User).filter_by(tg_id=user_id).first()
         if not user:
             return None
@@ -24,14 +24,7 @@ class InvitationSystem:
             user.invite_code = self.generate_invite_code()
             self.db.commit()
             
-        # 获取邀请统计
-        successful_invites = await self.get_invitation_count(user_id)
-            
-        return (
-            f"https://t.me/你的机器人用户名?start={user.invite_code}\n\n"
-            f"📊 已成功邀请：{successful_invites} 人\n"
-            f"💰 累计获得：{successful_invites * Config.INVITATION_POINTS} 积分"
-        )
+        return user.invite_code
     
     async def process_invitation(self, inviter_code, new_user_id):
         """处理邀请"""
