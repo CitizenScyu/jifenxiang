@@ -53,7 +53,46 @@ class Bot:
             self.db_session.commit()
         return db_user or new_user
 
+    async def show_invite_link(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """显示用户的邀请链接"""
+        if update.message.chat.type in ['group', 'supergroup']:
+            chat_id = update.message.chat.id
+            chat_username = update.message.chat.username
+            if not self.check_group_allowed(chat_id, chat_username):
+                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                return
+        
+        user = update.effective_user
+        self.ensure_user_exists(user)
+        
+        invite_link = await self.invitation_system.generate_invite_link(user.id)
+        invite_count = await self.invitation_system.get_invitation_count(user.id)
+        
+        await update.message.reply_text(
+            f"🔗 你的专属邀请链接：\n"
+            f"{invite_link}\n\n"
+            f"📊 已成功邀请：{invite_count} 人\n"
+            f"💰 累计获得：{invite_count * Config.INVITATION_POINTS} 积分\n\n"
+            f"✨ 每成功邀请一个新用户可获得 {Config.INVITATION_POINTS} 积分\n"
+            f"❗️ 每个新用户只能被邀请一次"
+        )
+
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        user = update.effective_user
+        self.ensure_user_exists(user)
+        
+        # 检查是否是通过邀请链接进来的
+        if context.args and len(context.args) > 0:
+            invite_code = context.args[0]
+            if await self.invitation_system.process_invitation(invite_code, user.id):
+                inviter = await self.invitation_system.get_inviter_info(user.id)
+                if inviter:
+                    await update.message.reply_text(
+                        f"✨ 欢迎加入！\n"
+                        f"👤 你已被用户 {inviter.username} 成功邀请\n"
+                        f"💰 邀请人获得 {Config.INVITATION_POINTS} 积分奖励"
+                    )
+        
         welcome_text = (
             "🤖 积分机器人使用说明\n\n"
             "💡 功能说明：\n"
@@ -65,7 +104,8 @@ class Bot:
             "📝 快捷命令：\n"
             "「签到」- 每日签到\n"
             "「积分」- 查询积分\n"
-            "「积分排行榜」- 查看排名\n\n"
+            "「积分排行榜」- 查看排名\n"
+            "/invite - 获取邀请链接\n\n"
             "✨ 在授权的群组内直接使用以上功能即可！"
         )
         await update.message.reply_text(welcome_text)
@@ -220,6 +260,7 @@ class Bot:
         application.add_handler(CommandHandler("checkin", self.checkin))
         application.add_handler(CommandHandler("points", self.show_points))
         application.add_handler(CommandHandler("leaderboard", self.show_leaderboard))
+        application.add_handler(CommandHandler("invite", self.show_invite_link))
         application.add_handler(CallbackQueryHandler(self.button_callback))
         application.add_handler(MessageHandler((filters.Sticker.ALL | filters.TEXT) & ~filters.COMMAND, self.handle_message))
 
