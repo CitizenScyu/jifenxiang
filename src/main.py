@@ -73,7 +73,8 @@ class Bot:
             f"• 每成功邀请一人奖励 {Config.INVITATION_POINTS} 积分\n"
             f"• 每个新用户只能被邀请一次\n"
             f"• 邀请成功后立即发放奖励"
-        )async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        )
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         user = update.effective_user
         self.ensure_user_exists(user)
         
