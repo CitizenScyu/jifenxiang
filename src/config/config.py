@@ -15,5 +15,6 @@ class Config:
     MIN_TEXT_LENGTH = 5  # 最少字数限制
     POINTS_PER_MESSAGE = 1  # 每条消息积分
     POINTS_PER_IMAGE = 2  # 每张图片积分
+    POINTS_PER_STICKER = 1  # 每个贴纸积分
     DAILY_CHECKIN_POINTS = 5  # 每日签到积分
     INVITATION_POINTS = 10  # 邀请新用户积分
