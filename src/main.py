@@ -93,7 +93,7 @@ class Bot:
         except Exception as e:
             logger.error(f"Error in show_invite_link: {str(e)}", exc_info=True)
             await update.message.reply_text("生成邀请链接时出现错误，请稍后重试。")
-            async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Start command received from user {update.effective_user.id}")
         user = update.effective_user
         self.ensure_user_exists(user)
