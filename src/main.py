@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 from config.config import Config
@@ -8,17 +9,29 @@ from modules.invitation import InvitationSystem
 from database.db import init_db, get_session, User
 from backup import DatabaseBackup
 
+# 确保日志目录存在
+os.makedirs('logs', exist_ok=True)
+
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('logs/bot.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
+    format='%(asctime)s - %(levelname)s - %(message)s',
 )
 
-logger = logging.getLogger(__name__)
+# 文件处理器
+file_handler = logging.FileHandler('logs/bot.log')
+file_handler.setLevel(logging.INFO)
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+
+# 控制台处理器
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setLevel(logging.INFO)
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+
+# 获取根logger
+logger = logging.getLogger()
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 class Bot:
     def __init__(self):
