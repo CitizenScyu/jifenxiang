@@ -59,13 +59,15 @@ class Bot:
         user = update.effective_user
         self.ensure_user_exists(user)
         
-        invite_link = await self.invitation_system.generate_invite_link(user.id)
+        invite_code = await self.invitation_system.generate_invite_link(user.id)
         invite_count = await self.invitation_system.get_invitation_count(user.id)
+        
+        bot_username = context.bot.username
         
         await update.message.reply_text(
             f"👤 用户：{user.username or user.first_name}\n\n"
             f"🔗 邀请链接：\n"
-            f"https://t.me/{context.bot.username}?start={invite_link}\n\n"
+            f"https://t.me/{bot_username}?start={invite_code}\n\n"
             f"📊 邀请统计：\n"
             f"✨ 成功邀请：{invite_count} 人\n"
             f"💰 获得奖励：{invite_count * Config.INVITATION_POINTS} 积分\n\n"
