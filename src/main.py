@@ -314,16 +314,21 @@ class Bot:
         try:
             logger.info("Initializing bot...")
             init_db()
+            logger.info("Database initialized")
             self.backup_system.run()
+            logger.info("Backup system started")
             
+            logger.info("Building application...")
             application = (
                 Application.builder()
                 .token(Config.BOT_TOKEN)
                 .job_queue(JobQueue(AsyncIOScheduler(timezone=pytz.timezone('Asia/Shanghai'))))
                 .build()
             )
+            logger.info("Application built successfully")
             
             # 添加处理器
+            logger.info("Adding handlers...")
             application.add_handler(CommandHandler("start", self.start))
             application.add_handler(CommandHandler("checkin", self.checkin))
             application.add_handler(CommandHandler("points", self.show_points))
@@ -332,11 +337,14 @@ class Bot:
             application.add_handler(CommandHandler("lottery", self.show_lotteries))
             application.add_handler(CallbackQueryHandler(self.button_callback))
             application.add_handler(MessageHandler((filters.Sticker.ALL | filters.TEXT) & ~filters.COMMAND, self.handle_message))
+            logger.info("Handlers added successfully")
 
             logger.info("Bot is starting...")
             application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
         except Exception as e:
             logger.error(f"Error in main loop: {str(e)}", exc_info=True)
+            import traceback
+            logger.error(traceback.format_exc())
             import time
             time.sleep(10)
 
