@@ -311,44 +311,45 @@ class Bot:
             logger.error(f"Error in handle_message: {str(e)}", exc_info=True)
             await update.message.reply_text("处理消息时出现错误，请稍后重试。")
 
-    def run(self):
-        try:
-            logger.info("Initializing bot...")
-            init_db()
-            logger.info("Database initialized")
-            self.backup_system.run()
-            logger.info("Backup system started")
-            
-            logger.info("Building application...")
-            # 创建 application 时不使用默认的 job_queue
-            application = (
-                Application.builder()
-                .token(Config.BOT_TOKEN)
-                .job_queue(None)  # 禁用默认的 job_queue
-                .build()
-            )
-            logger.info("Application built successfully")
-            
-            # 添加处理器
-            logger.info("Adding handlers...")
-            application.add_handler(CommandHandler("start", self.start))
-            application.add_handler(CommandHandler("checkin", self.checkin))
-            application.add_handler(CommandHandler("points", self.show_points))
-            application.add_handler(CommandHandler("leaderboard", self.show_leaderboard))
-            application.add_handler(CommandHandler("invite", self.show_invite_link))
-            application.add_handler(CommandHandler("lottery", self.show_lotteries))
-            application.add_handler(CallbackQueryHandler(self.button_callback))
-            application.add_handler(MessageHandler((filters.Sticker.ALL | filters.TEXT) & ~filters.COMMAND, self.handle_message))
-            logger.info("Handlers added successfully")
+def run(self):
+    try:
+        logger.info("Initializing bot...")
+        init_db()
+        logger.info("Database initialized")
+        
+        # 先不启动备份系统
+        # self.backup_system.run()
+        # logger.info("Backup system started")
+        
+        logger.info("Building application...")
+        application = (
+            Application.builder()
+            .token(Config.BOT_TOKEN)
+            .arbitrary_callback_data(True)  # 只保留必要的配置
+            .build()
+        )
+        logger.info("Application built successfully")
+        
+        # 添加处理器
+        logger.info("Adding handlers...")
+        application.add_handler(CommandHandler("start", self.start))
+        application.add_handler(CommandHandler("checkin", self.checkin))
+        application.add_handler(CommandHandler("points", self.show_points))
+        application.add_handler(CommandHandler("leaderboard", self.show_leaderboard))
+        application.add_handler(CommandHandler("invite", self.show_invite_link))
+        application.add_handler(CommandHandler("lottery", self.show_lotteries))
+        application.add_handler(CallbackQueryHandler(self.button_callback))
+        application.add_handler(MessageHandler((filters.Sticker.ALL | filters.TEXT) & ~filters.COMMAND, self.handle_message))
+        logger.info("Handlers added successfully")
 
-            logger.info("Bot is starting...")
-            application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
-        except Exception as e:
-            logger.error(f"Error in main loop: {str(e)}", exc_info=True)
-            import traceback
-            logger.error(traceback.format_exc())
-            import time
-            time.sleep(10)
+        logger.info("Bot is starting...")
+        application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    except Exception as e:
+        logger.error(f"Error in main loop: {str(e)}", exc_info=True)
+        import traceback
+        logger.error(traceback.format_exc())
+        import time
+        time.sleep(10)
 
 if __name__ == '__main__':
     bot = Bot()
