@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import pytz
-from src.database.db import get_session, Base, engine
+from database.db import get_session, Base, engine 
 
 # 配置日志
 logging.basicConfig(
