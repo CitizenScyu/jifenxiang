@@ -4,12 +4,12 @@ import os
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-from config.config import Config
-from modules.points import PointSystem
-from modules.invitation import InvitationSystem
-from modules.lottery import LotterySystem
-from database.db import init_db, get_session, User
-from backup import DatabaseBackup
+from src.config.config import Config
+from src.modules.points import PointSystem
+from src.modules.invitation import InvitationSystem
+from src.modules.lottery import LotterySystem
+from src.database.db import init_db, get_session, User
+from src.backup import DatabaseBackup
 
 # 确保日志目录存在
 os.makedirs('logs', exist_ok=True)
@@ -111,7 +111,6 @@ class Bot:
         except Exception as e:
             logger.error(f"Error in show_invite_link: {str(e)}", exc_info=True)
             await update.message.reply_text("生成邀请链接时出现错误，请稍后重试。")
-
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Start command received from user {update.effective_user.id}")
         user = update.effective_user
@@ -146,6 +145,7 @@ class Bot:
             "✨ 在授权的群组内直接使用以上功能即可！"
         )
         await update.message.reply_text(welcome_text)
+
     async def checkin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         if update.message.chat.type in ['group', 'supergroup']:
             chat_id = update.message.chat.id
@@ -220,65 +220,67 @@ class Bot:
         
         await update.message.reply_text(leaderboard_text, reply_markup=reply_markup)
 
-    async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        query = update.callback_query
-        await query.answer()
-        
-        if query.data.startswith("leaderboard_"):
-            page = int(query.data.split("_")[1])
-            leaderboard_text, total_pages = await self.point_system.get_points_leaderboard(page)
+    async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        if not update.message:
+            return
             
-            keyboard = []
-            if total_pages > 1:
-                buttons = []
-                if page > 1:
-                    buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"leaderboard_{page-1}"))
-                if page < total_pages:
-                    buttons.append(InlineKeyboardButton("下一页 ➡️", callback_data=f"leaderboard_{page+1}"))
-                keyboard.append(buttons)
-                
-            reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
-            
-            await query.message.edit_text(leaderboard_text, reply_markup=reply_markup)
-
-    async def show_lotteries(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """显示当前进行中的抽奖"""
         if update.message.chat.type in ['group', 'supergroup']:
             chat_id = update.message.chat.id
             chat_username = update.message.chat.username
+            
             if not self.check_group_allowed(chat_id, chat_username):
                 await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
                 return
-        
-        lotteries = await self.lottery_system.list_active_lotteries()
-        if not lotteries:
-            await update.message.reply_text("🎲 当前没有进行中的抽奖活动")
-            return
             
-        text = "🎲 进行中的抽奖活动：\n\n"
-        for lottery in lotteries:
-            info = await self.lottery_system.get_lottery_info(lottery.id)
-            text += (
-                f"🏷️ {info['title']}\n"
-                f"📝 {info['description']}\n"
-                f"💰 需要积分：{info['points_required']}\n"
-                f"👥 最少参与人数：{info['min_participants']}\n"
-                f"🎯 当前参与人数：{info['current_participants']}\n"
-                f"🏆 获奖名额：{info['winners_count']}\n"
-            )
-            if info['keyword']:
-                text += f"🔑 参与口令：{info['keyword']}\n"
-            if info['end_time']:
-                text += f"⏰ 结束时间：{info['end_time'].strftime('%Y-%m-%d %H:%M')}\n"
-            text += "\n"
+            user = update.effective_user
+            self.ensure_user_exists(user)
             
-        await update.message.reply_text(text)
+            if update.message.text:
+                text = update.message.text.strip()
+                
+                if text == "签到":
+                    await self.checkin(update, context)
+                elif text == "积分":
+                    await self.show_points(update, context)
+                elif text == "积分排行榜":
+                    await self.show_leaderboard(update, context)
+                elif text == "抽奖":
+                    await self.show_lotteries(update, context)
+                else:
+                    # 检查是否是抽奖关键词
+                    result, message = await self.lottery_system.check_keyword_lottery(update.message)
+                    if result:
+                        await update.message.reply_text(message)
+                    elif await self.point_system.check_message_validity(update.message):
+                        await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_MESSAGE)
+            elif update.message.sticker:
+                await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_STICKER)
 
-    async def admin_create_lottery(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """管理员创建抽奖"""
-        user = update.effective_user
-        if user.id not in Config.ADMIN_IDS:
-            await update.message.reply_text("⚠️ 只有管理员可以创建抽奖")
-            return
+    def run(self):
+        try:
+            logger.info("Initializing bot...")
+            init_db()
+            self.backup_system.run()
             
-        args
+            application = Application.builder().token(Config.BOT_TOKEN).build()
+            
+            # 添加处理器
+            application.add_handler(CommandHandler("start", self.start))
+            application.add_handler(CommandHandler("checkin", self.checkin))
+            application.add_handler(CommandHandler("points", self.show_points))
+            application.add_handler(CommandHandler("leaderboard", self.show_leaderboard))
+            application.add_handler(CommandHandler("invite", self.show_invite_link))
+            application.add_handler(CommandHandler("lottery", self.show_lotteries))
+            application.add_handler(CallbackQueryHandler(self.button_callback))
+            application.add_handler(MessageHandler((filters.Sticker.ALL | filters.TEXT) & ~filters.COMMAND, self.handle_message))
+
+            logger.info("Bot is starting...")
+            application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+        except Exception as e:
+            logger.error(f"Error in main loop: {str(e)}", exc_info=True)
+            import time
+            time.sleep(10)
+
+if __name__ == '__main__':
+    bot = Bot()
+    bot.run()
