@@ -11,7 +11,7 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     tg_id = Column(Integer, unique=True)
     username = Column(String)
-    points = Column(Float, default=0)
+    points = Column(Float, default=0.0)
     invite_code = Column(String, unique=True)
     last_checkin = Column(String, nullable=True)
     
