@@ -318,10 +318,11 @@ class Bot:
             logger.info("Database initialized")
             
             logger.info("Building application...")
+            builder = Application.builder()
+            builder._job_queue = None  # 完全禁用 job_queue
             application = (
-                Application.builder()
+                builder
                 .token(Config.BOT_TOKEN)
-                .job_queue(None)  # 禁用 job_queue
                 .concurrent_updates(True)
                 .connection_pool_size(100)
                 .build()
