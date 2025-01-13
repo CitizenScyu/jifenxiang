@@ -321,7 +321,9 @@ class Bot:
             application = (
                 Application.builder()
                 .token(Config.BOT_TOKEN)
+                .job_queue(None)  # 禁用 job_queue
                 .concurrent_updates(True)
+                .connection_pool_size(100)
                 .build()
             )
             logger.info("Application built successfully")
