@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import desc
-from src.database.db import User
-from src.config.config import Config
+from database.db import User
+from config.config import Config
 from math import ceil
 
 class PointSystem:
