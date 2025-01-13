@@ -317,14 +317,15 @@ class Bot:
             init_db()
             logger.info("Database initialized")
             
-            # 临时移除备份系统
-            # self.backup_system.run()
-            # logger.info("Backup system started")
-            
             logger.info("Building application...")
+            # 添加 persistence 和 defaults 配置
             application = (
                 Application.builder()
                 .token(Config.BOT_TOKEN)
+                .concurrent_updates(True)
+                .read_timeout(30)
+                .write_timeout(30)
+                .connection_pool_size(100)
                 .build()
             )
             logger.info("Application built successfully")
