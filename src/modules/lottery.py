@@ -1,8 +1,8 @@
 from datetime import datetime
-from src.database.db import Lottery, LotteryParticipant, User
+from database.db import Lottery, LotteryParticipant, User
 import random
 import asyncio
-from src.config.config import Config
+from config.config import Config
 
 class LotterySystem:
     def __init__(self, db_session):
