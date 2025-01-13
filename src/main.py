@@ -45,7 +45,6 @@ class Bot:
         self.invitation_system = InvitationSystem(self.db_session)
         self.lottery_system = LotterySystem(self.db_session)
         self.backup_system = DatabaseBackup()
-        
     def check_group_allowed(self, chat_id, username=None):
         chat_id_str = str(chat_id)
         
@@ -111,126 +110,117 @@ class Bot:
         except Exception as e:
             logger.error(f"Error in show_invite_link: {str(e)}", exc_info=True)
             await update.message.reply_text("生成邀请链接时出现错误，请稍后重试。")
-    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        logger.info(f"Start command received from user {update.effective_user.id}")
-        user = update.effective_user
-        self.ensure_user_exists(user)
-        
-        if context.args and len(context.args) > 0:
-            invite_code = context.args[0]
-            if await self.invitation_system.process_invitation(invite_code, user.id):
-                inviter = await self.invitation_system.get_inviter_info(user.id)
-                if inviter:
-                    await update.message.reply_text(
-                        f"✨ 欢迎加入！\n"
-                        f"👤 你已被用户 {inviter.username} 成功邀请\n"
-                        f"💰 邀请人获得 {Config.INVITATION_POINTS} 积分奖励"
-                    )
-        
-        welcome_text = (
-            "🤖 积分机器人使用说明\n\n"
-            "💡 功能说明：\n"
-            "1. 发送消息获得积分\n"
-            "2. 发送贴纸获得积分\n"
-            "3. 每日签到奖励\n"
-            "4. 邀请新用户奖励\n"
-            "5. 查看积分排行榜\n"
-            "6. 参与抽奖活动\n\n"
-            "📝 快捷命令：\n"
-            "「签到」- 每日签到\n"
-            "「积分」- 查询积分\n"
-            "「积分排行榜」- 查看排名\n"
-            "「抽奖」- 查看抽奖\n"
-            "/invite - 获取邀请链接\n\n"
-            "✨ 在授权的群组内直接使用以上功能即可！"
-        )
-        await update.message.reply_text(welcome_text)
-
-    async def checkin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+    async def show_lotteries(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """显示当前进行中的抽奖"""
         if update.message.chat.type in ['group', 'supergroup']:
             chat_id = update.message.chat.id
             chat_username = update.message.chat.username
             if not self.check_group_allowed(chat_id, chat_username):
                 await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
                 return
-        else:
-            await update.message.reply_text("请在授权的群组内使用机器人功能！")
-            return
-
-        user = update.effective_user
-        self.ensure_user_exists(user)
         
-        result = await self.point_system.daily_checkin(user.id)
-        if result:
-            points, _ = await self.point_system.get_user_points(user.id)
-            await update.message.reply_text(
-                f"✅ 签到成功！\n"
-                f"💰 获得 {Config.DAILY_CHECKIN_POINTS} 积分\n"
-                f"💵 当前总积分：{int(points)}分"
-            )
-        else:
-            await update.message.reply_text("❌ 今天已经签到过了哦！明天再来吧！")
-
-    async def show_points(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if update.message.chat.type in ['group', 'supergroup']:
-            chat_id = update.message.chat.id
-            chat_username = update.message.chat.username
-            if not self.check_group_allowed(chat_id, chat_username):
-                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
-                return
-        else:
-            await update.message.reply_text("请在授权的群组内使用机器人功能！")
+        lotteries = await self.lottery_system.list_active_lotteries()
+        if not lotteries:
+            await update.message.reply_text("🎲 当前没有进行中的抽奖活动")
             return
-
-        user = update.effective_user
-        self.ensure_user_exists(user)
-        
-        points, username = await self.point_system.get_user_points(user.id)
-        if points is not None:
-            await update.message.reply_text(
-                f"👤 用户: {username}\n"
-                f"💰 当前积分: {round(float(points))}分"
-            )
-        else:
-            await update.message.reply_text("未找到你的积分信息")
-
-    async def show_leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE, page=1):
-        if update.message.chat.type in ['group', 'supergroup']:
-            chat_id = update.message.chat.id
-            chat_username = update.message.chat.username
-            if not self.check_group_allowed(chat_id, chat_username):
-                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
-                return
-        else:
-            await update.message.reply_text("请在授权的群组内使用机器人功能！")
-            return
-
-        leaderboard_text, total_pages = await self.point_system.get_points_leaderboard(page)
-        
-        keyboard = []
-        if total_pages > 1:
-            buttons = []
-            if page > 1:
-                buttons.append(InlineKeyboardButton("⬅️ 上一页", callback_data=f"leaderboard_{page-1}"))
-            if page < total_pages:
-                buttons.append(InlineKeyboardButton("下一页 ➡️", callback_data=f"leaderboard_{page+1}"))
-            keyboard.append(buttons)
             
-        reply_markup = InlineKeyboardMarkup(keyboard) if keyboard else None
-        
-        await update.message.reply_text(leaderboard_text, reply_markup=reply_markup)
+        text = "🎲 进行中的抽奖活动：\n\n"
+        for lottery in lotteries:
+            info = await self.lottery_system.get_lottery_info(lottery.id)
+            text += (
+                f"🏷️ {info['title']}\n"
+                f"📝 {info['description']}\n"
+                f"💰 需要积分：{info['points_required']}\n"
+                f"👥 最少参与人数：{info['min_participants']}\n"
+                f"🎯 当前参与人数：{info['current_participants']}\n"
+                f"🏆 获奖名额：{info['winners_count']}\n"
+            )
+            if info['keyword']:
+                text += f"🔑 参与口令：{info['keyword']}\n"
+            if info['end_time']:
+                text += f"⏰ 结束时间：{info['end_time'].strftime('%Y-%m-%d %H:%M')}\n"
+            text += "\n"
+            
+        await update.message.reply_text(text)
+
+    async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理 /start 命令"""
+        logger.info(f"Received start command from user {update.effective_user.id}")
+        try:
+            if update.message.chat.type in ['group', 'supergroup']:
+                chat_id = update.message.chat.id
+                chat_username = update.message.chat.username
+                if not self.check_group_allowed(chat_id, chat_username):
+                    await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                    return
+            
+            user = update.effective_user
+            self.ensure_user_exists(user)
+            
+            args = context.args
+            if args and len(args[0]) == 8:  # 邀请码长度为8
+                invite_code = args[0]
+                success = await self.invitation_system.process_invitation(invite_code, user.id)
+                if success:
+                    inviter_id = await self.invitation_system.get_inviter_by_code(invite_code)
+                    await self.point_system.add_points(inviter_id, Config.INVITATION_POINTS)
+                    await update.message.reply_text(
+                        f"🎉 欢迎加入！您已通过邀请链接注册成功\n"
+                        f"💫 邀请者获得 {Config.INVITATION_POINTS} 积分奖励"
+                    )
+                    return
+            
+            # 默认欢迎信息
+            await update.message.reply_text(
+                f"👋 欢迎使用积分抽奖机器人！\n\n"
+                f"🎮 主要功能：\n"
+                f"• /points - 查看积分\n"
+                f"• /invite - 生成邀请链接\n"
+                f"• /lotteries - 查看抽奖活动\n"
+                f"• /mylotteries - 查看我的抽奖\n\n"
+                f"💡 温馨提示：\n"
+                f"• 通过邀请好友可以获得积分奖励\n"
+                f"• 积分可以参与抽奖活动"
+            )
+            logger.info(f"Successfully processed start command for user {user.id}")
+        except Exception as e:
+            logger.error(f"Error in start command: {str(e)}", exc_info=True)
+            await update.message.reply_text("处理命令时出现错误，请稍后重试。")
+    async def show_points(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """显示用户积分"""
+        logger.info(f"Received points command from user {update.effective_user.id}")
+        try:
+            if update.message.chat.type in ['group', 'supergroup']:
+                chat_id = update.message.chat.id
+                chat_username = update.message.chat.username
+                if not self.check_group_allowed(chat_id, chat_username):
+                    await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                    return
+            
+            user = update.effective_user
+            db_user = self.ensure_user_exists(user)
+            
+            points = await self.point_system.get_points(user.id)
+            await update.message.reply_text(
+                f"👤 用户：{user.username or user.first_name}\n"
+                f"💰 当前积分：{points}\n\n"
+                f"💡 获取更多积分：\n"
+                f"• 邀请好友加入可获得 {Config.INVITATION_POINTS} 积分\n"
+                f"• 使用 /invite 生成邀请链接"
+            )
+            logger.info(f"Successfully sent points info to user {user.id}")
+        except Exception as e:
+            logger.error(f"Error in show_points: {str(e)}", exc_info=True)
+            await update.message.reply_text("查询积分时出现错误，请稍后重试。")
 
     async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        if not update.message:
-            return
-            
-        if update.message.chat.type in ['group', 'supergroup']:
-            chat_id = update.message.chat.id
-            chat_username = update.message.chat.username
-            
-            if not self.check_group_allowed(chat_id, chat_username):
-                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
-                return
+        """处理普通消息"""
+        try:
+            if update.message.chat.type in ['group', 'supergroup']:
+                chat_id = update.message.chat.id
+                chat_username = update.message.chat.username
+                if not self.check_group_allowed(chat_id, chat_username):
+                    return
             
             user = update.effective_user
             self.ensure_user_exists(user)
