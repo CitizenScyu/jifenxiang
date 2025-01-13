@@ -2,7 +2,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, U
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
-from config.config import Config
+from src.config.config import Config
 
 Base = declarative_base()
 
@@ -44,7 +44,7 @@ class Lottery(Base):
     points_required = Column(Integer, default=0)  # 参与所需积分
     winners_count = Column(Integer)  # 中奖人数
     min_participants = Column(Integer, default=0)  # 最少参与人数
-    keyword = Column(String)  # 关键词(如果是关键词抽奖)
+    keyword = Column(String, nullable=True)  # 关键词(如果是关键词抽奖)
     status = Column(String, default='active')  # active, completed, cancelled
     end_time = Column(DateTime, nullable=True)  # 结束时间
     created_at = Column(DateTime, default=datetime.now)
