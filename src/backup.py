@@ -3,7 +3,6 @@ import asyncio
 import os
 from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-import pytz
 from database.db import get_session, Base, engine
 
 # 配置日志
@@ -18,7 +17,7 @@ logger = logging.getLogger(__name__)
 class DatabaseBackup:
     def __init__(self):
         self.db_session = get_session()
-        self.scheduler = AsyncIOScheduler()  # 移除时区配置
+        self.scheduler = AsyncIOScheduler()
         
     def backup_database(self):
         """备份数据库"""
@@ -39,12 +38,12 @@ class DatabaseBackup:
     def run(self):
         """启动定时备份任务"""
         try:
-            # 每天凌晨3点进行备份
+            # 不使用 cron，改用 interval
             self.scheduler.add_job(
                 self.backup_database,
-                'cron',
-                hour=3,
-                minute=0
+                'interval',
+                hours=24,
+                start_date='2025-01-14 03:00:00'
             )
             
             self.scheduler.start()
