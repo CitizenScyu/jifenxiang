@@ -43,7 +43,7 @@ class Bot:
         self.point_system = PointSystem(self.db_session)
         self.invitation_system = InvitationSystem(self.db_session)
         self.lottery_system = LotterySystem(self.db_session)
-        self.backup_system = DatabaseBackup()
+        # self.backup_system = DatabaseBackup()
         
     def check_group_allowed(self, chat_id, username=None):
         chat_id_str = str(chat_id)
@@ -326,13 +326,13 @@ class Bot:
             try:
                 logger.info("Initializing bot...")
                 init_db()
+                logger.info("Database initialized")
                 
-                # 修改 Application 构建方式
-                builder = Application.builder()
-                builder._job_queue = None  # 完全禁用 job queue
+                # 使用最简单的构建方式
                 application = (
-                    builder
+                    Application.builder()
                     .token(Config.BOT_TOKEN)
+                    .arbitrary_callback_data(True)
                     .build()
                 )
                 
@@ -351,7 +351,7 @@ class Bot:
             except Exception as e:
                 logger.error(f"Error in main loop: {str(e)}", exc_info=True)
                 import time
-                time.sleep(10)  # 等待10秒后重试
+                time.sleep(10)
 if __name__ == '__main__':
     bot = Bot()
     bot.run()
