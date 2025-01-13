@@ -66,3 +66,32 @@ class PointSystem:
         leaderboard_text += f"\n第 {page}/{total_pages} 页"
         
         return leaderboard_text, total_pages
+
+    async def admin_adjust_points(self, admin_id, target_user_id, points_change):
+        """管理员调整积分"""
+        if admin_id not in Config.ADMIN_IDS:
+            return False, "⚠️ 你没有权限执行此操作"
+        
+        user = self.db.query(User).filter_by(tg_id=target_user_id).first()
+        if not user:
+            return False, "⚠️ 用户不存在"
+        
+        # 将积分变化转换为浮点数
+        try:
+            points_change = float(points_change)
+        except ValueError:
+            return False, "⚠️ 积分数量必须是数字"
+        
+        # 确保不会扣成负数
+        if points_change < 0 and abs(points_change) > user.points:
+            return False, "⚠️ 用户积分不足以扣除"
+        
+        current_points = float(user.points) if isinstance(user.points, str) else user.points
+        user.points = current_points + points_change
+        self.db.commit()
+        
+        return True, f"✅ 已{'增加' if points_change > 0 else '扣除'} {abs(points_change)} 积分\n👤 用户: {user.username}\n💰 当前积分: {user.points}"
+
+    async def get_user_by_username(self, username):
+        """通过用户名查找用户"""
+        return self.db.query(User).filter_by(username=username).first()
