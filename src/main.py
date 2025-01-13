@@ -165,36 +165,40 @@ class Bot:
 
     async def show_lotteries(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """显示当前进行中的抽奖"""
-        if update.message.chat.type in ['group', 'supergroup']:
-            chat_id = update.message.chat.id
-            chat_username = update.message.chat.username
-            if not self.check_group_allowed(chat_id, chat_username):
-                await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+        try:
+            if update.message.chat.type in ['group', 'supergroup']:
+                chat_id = update.message.chat.id
+                chat_username = update.message.chat.username
+                if not self.check_group_allowed(chat_id, chat_username):
+                    await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                    return
+            
+            lotteries = await self.lottery_system.list_active_lotteries()
+            if not lotteries:
+                await update.message.reply_text("🎲 当前没有进行中的抽奖活动")
                 return
-        
-        lotteries = await self.lottery_system.list_active_lotteries()
-        if not lotteries:
-            await update.message.reply_text("🎲 当前没有进行中的抽奖活动")
-            return
-            
-        text = "🎲 进行中的抽奖活动：\n\n"
-        for lottery in lotteries:
-            info = await self.lottery_system.get_lottery_info(lottery.id)
-            text += (
-                f"🏷️ {info['title']}\n"
-                f"📝 {info['description']}\n"
-                f"💰 需要积分：{info['points_required']}\n"
-                f"👥 最少参与人数：{info['min_participants']}\n"
-                f"🎯 当前参与人数：{info['current_participants']}\n"
-                f"🏆 获奖名额：{info['winners_count']}\n"
-            )
-            if info['keyword']:
-                text += f"🔑 参与口令：{info['keyword']}\n"
-            if info['end_time']:
-                text += f"⏰ 结束时间：{info['end_time'].strftime('%Y-%m-%d %H:%M')}\n"
-            text += "\n"
-            
-        await update.message.reply_text(text)
+                
+            text = "🎲 进行中的抽奖活动：\n\n"
+            for lottery in lotteries:
+                info = await self.lottery_system.get_lottery_info(lottery.id)
+                text += (
+                    f"🏷️ {info['title']}\n"
+                    f"📝 {info['description']}\n"
+                    f"💰 需要积分：{info['points_required']}\n"
+                    f"👥 最少参与人数：{info['min_participants']}\n"
+                    f"🎯 当前参与人数：{info['current_participants']}\n"
+                    f"🏆 获奖名额：{info['winners_count']}\n"
+                )
+                if info['keyword']:
+                    text += f"🔑 参与口令：{info['keyword']}\n"
+                if info['end_time']:
+                    text += f"⏰ 结束时间：{info['end_time'].strftime('%Y-%m-%d %H:%M')}\n"
+                text += "\n"
+                
+            await update.message.reply_text(text)
+        except Exception as e:
+            logger.error(f"Error in show_lotteries: {str(e)}", exc_info=True)
+            await update.message.reply_text("获取抽奖列表时出现错误，请稍后重试。")
 
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理 /start 命令"""
@@ -299,6 +303,9 @@ class Bot:
                         await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_MESSAGE)
             elif update.message.sticker:
                 await self.point_system.add_points(update.effective_user.id, Config.POINTS_PER_STICKER)
+        except Exception as e:
+            logger.error(f"Error in handle_message: {str(e)}", exc_info=True)
+            await update.message.reply_text("处理消息时出现错误，请稍后重试。")
 
     def run(self):
         try:
