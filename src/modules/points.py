@@ -11,7 +11,10 @@ class PointSystem:
 async def add_points(self, user_id, points):
     user = self.db.query(User).filter_by(tg_id=user_id).first()
     if user:
-        user.points = float(user.points) + float(points)  # 确保类型转换
+        # 确保两个操作数都是浮点数
+        current_points = float(user.points) if isinstance(user.points, str) else user.points
+        points_to_add = float(points)
+        user.points = current_points + points_to_add
         self.db.commit()
         return True
     return False
