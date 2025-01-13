@@ -4,7 +4,7 @@ import os
 from datetime import datetime
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 import pytz
-from database.db import get_session, Base, engine 
+from database.db import get_session, Base, engine
 
 # 配置日志
 logging.basicConfig(
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class DatabaseBackup:
     def __init__(self):
         self.db_session = get_session()
-        self.scheduler = AsyncIOScheduler(timezone=pytz.timezone('Asia/Shanghai'))
+        self.scheduler = AsyncIOScheduler()  # 移除时区配置
         
     def backup_database(self):
         """备份数据库"""
