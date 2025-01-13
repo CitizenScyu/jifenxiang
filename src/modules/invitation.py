@@ -1,7 +1,7 @@
 import random
 import string
-from database.db import User, Invitation
-from config.config import Config
+from src.database.db import User, Invitation
+from src.config.config import Config
 
 class InvitationSystem:
     def __init__(self, db_session):
