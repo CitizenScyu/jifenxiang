@@ -8,13 +8,13 @@ class PointSystem:
     def __init__(self, db_session):
         self.db = db_session
         
-    async def add_points(self, user_id, points):
-        user = self.db.query(User).filter_by(tg_id=user_id).first()
-        if user:
-            user.points += points
-            self.db.commit()
-            return True
-        return False
+async def add_points(self, user_id, points):
+    user = self.db.query(User).filter_by(tg_id=user_id).first()
+    if user:
+        user.points = float(user.points) + float(points)  # 确保类型转换
+        self.db.commit()
+        return True
+    return False
     
     async def check_message_validity(self, message):
         if len(message.text) >= Config.MIN_TEXT_LENGTH:
