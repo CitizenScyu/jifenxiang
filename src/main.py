@@ -109,6 +109,7 @@ class Bot:
         except Exception as e:
             logger.error(f"Error in show_leaderboard: {str(e)}", exc_info=True)
             await update.message.reply_text("获取排行榜时出现错误，请稍后重试。")
+
     async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """处理按钮回调"""
         try:
@@ -123,7 +124,8 @@ class Bot:
             
         except Exception as e:
             logger.error(f"Error in button_callback: {str(e)}", exc_info=True)
-            await update.callback_query.message.reply_text("处理操作时出现错误，请稍后重试。")
+            if update.callback_query and update.callback_query.message:
+                await update.callback_query.message.reply_text("处理操作时出现错误，请稍后重试。")
 
     async def show_invite_link(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Received invite command from user {update.effective_user.id}")
