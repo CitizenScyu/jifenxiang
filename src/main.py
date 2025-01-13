@@ -326,9 +326,15 @@ class Bot:
             try:
                 logger.info("Initializing bot...")
                 init_db()
-                self.backup_system.run()
                 
-                application = Application.builder().token(Config.BOT_TOKEN).build()
+                # 修改 Application 构建方式
+                builder = Application.builder()
+                builder._job_queue = None  # 完全禁用 job queue
+                application = (
+                    builder
+                    .token(Config.BOT_TOKEN)
+                    .build()
+                )
                 
                 # 添加处理器
                 application.add_handler(CommandHandler("start", self.start))
@@ -346,7 +352,6 @@ class Bot:
                 logger.error(f"Error in main loop: {str(e)}", exc_info=True)
                 import time
                 time.sleep(10)  # 等待10秒后重试
-
 if __name__ == '__main__':
     bot = Bot()
     bot.run()
