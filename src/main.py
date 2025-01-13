@@ -5,12 +5,12 @@ import os
 from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-from src.config.config import Config
-from src.modules.points import PointSystem
-from src.modules.invitation import InvitationSystem
-from src.modules.lottery import LotterySystem
-from src.database.db import init_db, get_session, User
-from src.backup import DatabaseBackup
+from config.config import Config
+from modules.points import PointSystem
+from modules.invitation import InvitationSystem
+from modules.lottery import LotterySystem
+from database.db import init_db, get_session, User
+from backup import DatabaseBackup
 
 # 确保日志目录存在
 os.makedirs('logs', exist_ok=True)
