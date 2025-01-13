@@ -1,7 +1,7 @@
 from datetime import datetime
 from sqlalchemy import desc
-from database.db import User
-from config.config import Config
+from src.database.db import User
+from src.config.config import Config
 from math import ceil
 
 class PointSystem:
@@ -66,7 +66,7 @@ class PointSystem:
         leaderboard_text += f"\n第 {page}/{total_pages} 页"
         
         return leaderboard_text, total_pages
-
+    
     async def admin_adjust_points(self, admin_id, target_user_id, points_change):
         """管理员调整积分"""
         if admin_id not in Config.ADMIN_IDS:
@@ -91,7 +91,7 @@ class PointSystem:
         self.db.commit()
         
         return True, f"✅ 已{'增加' if points_change > 0 else '扣除'} {abs(points_change)} 积分\n👤 用户: {user.username}\n💰 当前积分: {user.points}"
-
+    
     async def get_user_by_username(self, username):
         """通过用户名查找用户"""
         return self.db.query(User).filter_by(username=username).first()
