@@ -320,14 +320,9 @@ class Bot:
             logger.info("Backup system started")
             
             logger.info("Building application...")
-            scheduler = AsyncIOScheduler()
-            scheduler.configure(timezone=pytz.timezone('Asia/Shanghai'))
-            job_queue = JobQueue(scheduler)
-
             application = (
                 Application.builder()
                 .token(Config.BOT_TOKEN)
-                .job_queue(job_queue)
                 .build()
             )
             logger.info("Application built successfully")
