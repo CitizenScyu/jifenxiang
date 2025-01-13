@@ -45,6 +45,7 @@ class Bot:
         self.invitation_system = InvitationSystem(self.db_session)
         self.lottery_system = LotterySystem(self.db_session)
         self.backup_system = DatabaseBackup()
+
     def check_group_allowed(self, chat_id, username=None):
         chat_id_str = str(chat_id)
         
@@ -72,6 +73,57 @@ class Bot:
             self.db_session.add(new_user)
             self.db_session.commit()
         return db_user or new_user
+
+    async def checkin(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理签到"""
+        try:
+            if update.message.chat.type in ['group', 'supergroup']:
+                chat_id = update.message.chat.id
+                chat_username = update.message.chat.username
+                if not self.check_group_allowed(chat_id, chat_username):
+                    await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                    return
+            
+            user = update.effective_user
+            result = await self.point_system.process_checkin(user.id)
+            await update.message.reply_text(result)
+        except Exception as e:
+            logger.error(f"Error in checkin: {str(e)}", exc_info=True)
+            await update.message.reply_text("签到时出现错误，请稍后重试。")
+
+    async def show_leaderboard(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """显示积分排行榜"""
+        try:
+            if update.message.chat.type in ['group', 'supergroup']:
+                chat_id = update.message.chat.id
+                chat_username = update.message.chat.username
+                if not self.check_group_allowed(chat_id, chat_username):
+                    await update.message.reply_text("⚠️ 此群组未经授权，机器人无法使用。")
+                    return
+            
+            leaderboard = await self.point_system.get_leaderboard()
+            text = "🏆 积分排行榜\n\n"
+            for i, (username, points) in enumerate(leaderboard, 1):
+                text += f"{i}. {username}: {points} 积分\n"
+            await update.message.reply_text(text)
+        except Exception as e:
+            logger.error(f"Error in show_leaderboard: {str(e)}", exc_info=True)
+            await update.message.reply_text("获取排行榜时出现错误，请稍后重试。")
+    async def button_callback(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """处理按钮回调"""
+        try:
+            query = update.callback_query
+            await query.answer()
+            
+            data = query.data
+            if data.startswith('join_lottery_'):
+                lottery_id = int(data.split('_')[2])
+                result = await self.lottery_system.join_lottery(lottery_id, query.from_user.id)
+                await query.message.reply_text(result)
+            
+        except Exception as e:
+            logger.error(f"Error in button_callback: {str(e)}", exc_info=True)
+            await update.callback_query.message.reply_text("处理操作时出现错误，请稍后重试。")
 
     async def show_invite_link(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         logger.info(f"Received invite command from user {update.effective_user.id}")
@@ -110,6 +162,7 @@ class Bot:
         except Exception as e:
             logger.error(f"Error in show_invite_link: {str(e)}", exc_info=True)
             await update.message.reply_text("生成邀请链接时出现错误，请稍后重试。")
+
     async def show_lotteries(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """显示当前进行中的抽奖"""
         if update.message.chat.type in ['group', 'supergroup']:
@@ -186,6 +239,7 @@ class Bot:
         except Exception as e:
             logger.error(f"Error in start command: {str(e)}", exc_info=True)
             await update.message.reply_text("处理命令时出现错误，请稍后重试。")
+
     async def show_points(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """显示用户积分"""
         logger.info(f"Received points command from user {update.effective_user.id}")
