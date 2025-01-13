@@ -1,5 +1,5 @@
 from datetime import datetime
-from database.db import Lottery, LotteryParticipant, User
+from database.db import Lottery, LotteryParticipation, User
 import random
 import asyncio
 from config.config import Config
