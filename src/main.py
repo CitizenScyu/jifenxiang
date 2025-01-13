@@ -46,7 +46,7 @@ class Bot:
         self.point_system = PointSystem(self.db_session)
         self.invitation_system = InvitationSystem(self.db_session)
         self.lottery_system = LotterySystem(self.db_session)
-        #self.backup_system = DatabaseBackup()
+        # self.backup_system = DatabaseBackup()
 
     def check_group_allowed(self, chat_id, username=None):
         chat_id_str = str(chat_id)
