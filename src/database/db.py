@@ -1,6 +1,7 @@
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, UniqueConstraint
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, UniqueConstraint, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 from config.config import Config
 
 Base = declarative_base()
@@ -32,6 +33,40 @@ class Invitation(Base):
     
     def __repr__(self):
         return f"<Invitation(inviter_id={self.inviter_id}, invitee_id={self.invitee_id}, rewarded={self.rewarded})>"
+
+class Lottery(Base):
+    __tablename__ = 'lotteries'
+    
+    id = Column(Integer, primary_key=True)
+    title = Column(String)  # 抽奖标题
+    description = Column(String)  # 抽奖描述
+    creator_id = Column(Integer)  # 创建者ID
+    points_required = Column(Integer, default=0)  # 参与所需积分
+    winners_count = Column(Integer)  # 中奖人数
+    min_participants = Column(Integer, default=0)  # 最少参与人数
+    keyword = Column(String)  # 关键词(如果是关键词抽奖)
+    status = Column(String, default='active')  # active, completed, cancelled
+    end_time = Column(DateTime, nullable=True)  # 结束时间
+    created_at = Column(DateTime, default=datetime.now)
+
+    def __repr__(self):
+        return f"<Lottery(id={self.id}, title={self.title}, status={self.status})>"
+
+class LotteryParticipant(Base):
+    __tablename__ = 'lottery_participants'
+    
+    id = Column(Integer, primary_key=True)
+    lottery_id = Column(Integer)
+    user_id = Column(Integer)
+    joined_at = Column(DateTime, default=datetime.now)
+    is_winner = Column(Boolean, default=False)
+    
+    __table_args__ = (
+        UniqueConstraint('lottery_id', 'user_id', name='unique_lottery_participant'),
+    )
+    
+    def __repr__(self):
+        return f"<LotteryParticipant(lottery_id={self.lottery_id}, user_id={self.user_id}, is_winner={self.is_winner})>"
 
 def init_db():
     """初始化数据库，创建所有表"""
