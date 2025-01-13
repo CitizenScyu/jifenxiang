@@ -46,7 +46,7 @@ class Bot:
         self.point_system = PointSystem(self.db_session)
         self.invitation_system = InvitationSystem(self.db_session)
         self.lottery_system = LotterySystem(self.db_session)
-        self.backup_system = DatabaseBackup()
+        #self.backup_system = DatabaseBackup()
 
     def check_group_allowed(self, chat_id, username=None):
         chat_id_str = str(chat_id)
@@ -311,17 +311,20 @@ class Bot:
             logger.error(f"Error in handle_message: {str(e)}", exc_info=True)
             await update.message.reply_text("处理消息时出现错误，请稍后重试。")
 
-    def run(self):  # 确保这个方法在类的内部
+    def run(self):
         try:
             logger.info("Initializing bot...")
             init_db()
             logger.info("Database initialized")
             
+            # 临时移除备份系统
+            # self.backup_system.run()
+            # logger.info("Backup system started")
+            
             logger.info("Building application...")
             application = (
                 Application.builder()
                 .token(Config.BOT_TOKEN)
-                .arbitrary_callback_data(True)
                 .build()
             )
             logger.info("Application built successfully")
