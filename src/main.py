@@ -1,3 +1,4 @@
+import pytz
 import logging
 import sys
 import os
@@ -315,7 +316,12 @@ class Bot:
             init_db()
             self.backup_system.run()
             
-            application = Application.builder().token(Config.BOT_TOKEN).build()
+            application = (
+                Application.builder()
+                .token(Config.BOT_TOKEN)
+                .job_queue(JobQueue(AsyncIOScheduler(timezone=pytz.timezone('Asia/Shanghai'))))
+                .build()
+            )
             
             # 添加处理器
             application.add_handler(CommandHandler("start", self.start))
