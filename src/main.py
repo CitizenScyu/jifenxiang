@@ -318,16 +318,19 @@ class Bot:
             logger.info("Database initialized")
             
             logger.info("Building application...")
-            # 添加 persistence 和 defaults 配置
+            # 使用默认的 job_queue
             application = (
                 Application.builder()
                 .token(Config.BOT_TOKEN)
-                .concurrent_updates(True)
-                .read_timeout(30)
-                .write_timeout(30)
-                .connection_pool_size(100)
                 .build()
             )
+            
+            # 如果需要，手动配置 job_queue 的 scheduler
+            if application.job_queue:
+                scheduler = AsyncIOScheduler()
+                scheduler.configure(timezone=pytz.timezone('Asia/Shanghai'))
+                application.job_queue.scheduler = scheduler
+            
             logger.info("Application built successfully")
             
             # 添加处理器
