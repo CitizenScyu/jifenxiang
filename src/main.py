@@ -318,19 +318,12 @@ class Bot:
             logger.info("Database initialized")
             
             logger.info("Building application...")
-            # 使用默认的 job_queue
             application = (
                 Application.builder()
                 .token(Config.BOT_TOKEN)
+                .concurrent_updates(True)
                 .build()
             )
-            
-            # 如果需要，手动配置 job_queue 的 scheduler
-            if application.job_queue:
-                scheduler = AsyncIOScheduler()
-                scheduler.configure(timezone=pytz.timezone('Asia/Shanghai'))
-                application.job_queue.scheduler = scheduler
-            
             logger.info("Application built successfully")
             
             # 添加处理器
