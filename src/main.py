@@ -320,9 +320,11 @@ class Bot:
             logger.info("Backup system started")
             
             logger.info("Building application...")
+            # 创建 application 时不使用默认的 job_queue
             application = (
                 Application.builder()
                 .token(Config.BOT_TOKEN)
+                .job_queue(None)  # 禁用默认的 job_queue
                 .build()
             )
             logger.info("Application built successfully")
@@ -347,7 +349,6 @@ class Bot:
             logger.error(traceback.format_exc())
             import time
             time.sleep(10)
-
 
 if __name__ == '__main__':
     bot = Bot()
